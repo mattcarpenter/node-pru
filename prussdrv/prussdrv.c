@@ -657,6 +657,11 @@ int prussdrv_exit()
 
 int prussdrv_exec_program(int prunum, const char *filename)
 {
+  return prussdrv_exec_program_at(prunum, filename, 0);
+}
+
+int prussdrv_exec_program_at(int prunum, const char *filename, size_t addr)
+{
     FILE *fPtr;
     unsigned char fileDataArray[PRUSS_MAX_IRAM_SIZE];
     int fileSize = 0;
@@ -690,8 +695,9 @@ int prussdrv_exec_program(int prunum, const char *filename)
 
     fclose(fPtr);
 
-    return prussdrv_exec_code(prunum, (const unsigned int *) fileDataArray, fileSize);
+    return prussdrv_exec_code_at(prunum, (const unsigned int *) fileDataArray, fileSize, addr);
 }
+
 
 int prussdrv_exec_code(int prunum, const unsigned int *code, int codelen)
 {

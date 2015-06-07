@@ -22,5 +22,6 @@
   "readmeFilename": "README.md",
   "bugs": {
     "url": "https://github.com/pgmmpk/node-prussdrv/issues"
-  }
+  },
+  "dependencies": {}
 }

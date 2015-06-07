@@ -189,6 +189,7 @@ extern "C" {
     int prussdrv_exit(void);
 
     int prussdrv_exec_program(int prunum, const char *filename);
+    int prussdrv_exec_program_at(int prunum, const char *filename, size_t addr);
 
     int prussdrv_exec_code(int prunum, const unsigned int *code, int codelen);
 
