@@ -61,11 +61,16 @@ Handle<Value> InitPRU(const Arguments& args) {
  */
 Handle<Value> executeProgram(const Arguments& args) {
 	HandleScope scope;
-	
+	int address = 0;
+
 	//Check we have a single argument
-	if (args.Length() != 1) {
+	if (args.Length() != 1 || args.Length() != 2) {
 		ThrowException(Exception::TypeError(String::New("Wrong number of arguments")));
 		return scope.Close(Undefined());
+	}
+
+	if (args.Length() == 2 && args[0]->IsNumber()) {
+		address = args[1]->Int32Value();
 	}
 
 	//Check that it's a string
@@ -79,7 +84,7 @@ Handle<Value> executeProgram(const Arguments& args) {
 	std::string programS = std::string(*program);
 	
 	//Execute the program
-	int rc = prussdrv_exec_program (PRU_NUM, (char*)programS.c_str());
+	int rc = prussdrv_exec_program_at (PRU_NUM, (char*)programS.c_str(), address);
 	if (rc != 0) {
 		ThrowException(Exception::TypeError(String::New("failed to execute PRU firmware")));
 		return scope.Close(Undefined());
