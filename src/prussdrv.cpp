@@ -60,12 +60,28 @@ Handle<Value> InitPRU(const Arguments& args) {
  *
  */
 Handle<Value> loadDatafile(const Arguments& args) {
-  if (args.Length() != 2) {
-    ThrowException(Exception::TypeError(String::New("Wrong number of arguments")));
-    return scope.Close(Undefined());
-  }
-
+	HandleScope scope;
+	
+	if (args.Length() != 1) {
+		ThrowException(Exception::TypeError(String::New("Wrong number of arguments")));
+  		return scope.Close(Undefined());
+  	}
+  	
+  	if (!args[0]->IsString()) {
+  		ThrowException(Exception::TypeError(String::New("Argument must be a string")));
+  		return scope.Close(Undefined());
+  	}
   
+  	//Get a C++ string
+	String::Utf8Value datafile(args[0]->ToString());
+	std::string datafileS = std::string(*program);
+	
+	//Load the datafile
+	int rc = prussdrv_load_datafile (PRU_NUM, (char*)datafileS.c_str());
+	if (rc != 0) {
+		ThrowException(Exception::TypeError(String::New("failed to load datafile")));
+		return scope.Close(Undefined());
+	}
 }
 
 /* Execute PRU program
