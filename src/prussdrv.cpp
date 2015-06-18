@@ -91,7 +91,7 @@ Handle<Value> loadDatafile(const Arguments& args) {
  */
 Handle<Value> executeProgram(const Arguments& args) {
 	HandleScope scope;
-	int address = 0;
+	int address = 908;
 
 	//Check we have a single argument
 	if (args.Length() != 1 && args.Length() != 2) {
@@ -371,6 +371,9 @@ Handle<Value> forceExit(const Arguments& args) {
 void Init(Handle<Object> exports, Handle<Object> module) {
 	//	pru.init();
 	exports->Set(String::NewSymbol("init"), FunctionTemplate::New(InitPRU)->GetFunction());
+
+	//	pru.loadDatafile("data.bin");
+	exports->Set(String::NewSymbol("loadDatafile"), FunctionTemplate::New(loadDatafile)->GetFunction());
 	
 	//	pru.execute("mycode.bin");
 	exports->Set(String::NewSymbol("execute"), FunctionTemplate::New(executeProgram)->GetFunction());
