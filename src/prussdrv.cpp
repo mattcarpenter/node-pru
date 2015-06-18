@@ -56,6 +56,18 @@ Handle<Value> InitPRU(const Arguments& args) {
 	return scope.Close(Undefined());
 }
 
+/* Loads PRU data file
+ *
+ */
+Handle<Value> loadDatafile(const Arguments& args) {
+  if (args.Length() != 2) {
+    ThrowException(Exception::TypeError(String::New("Wrong number of arguments")));
+    return scope.Close(Undefined());
+  }
+
+  
+}
+
 /* Execute PRU program
  *	Takes a single string argument, the filename of the .bin
  */
@@ -64,7 +76,7 @@ Handle<Value> executeProgram(const Arguments& args) {
 	int address = 0;
 
 	//Check we have a single argument
-	if (args.Length() != 1 || args.Length() != 2) {
+	if (args.Length() != 1 && args.Length() != 2) {
 		ThrowException(Exception::TypeError(String::New("Wrong number of arguments")));
 		return scope.Close(Undefined());
 	}
