@@ -74,7 +74,7 @@ Handle<Value> loadDatafile(const Arguments& args) {
   
   	//Get a C++ string
 	String::Utf8Value datafile(args[0]->ToString());
-	std::string datafileS = std::string(*program);
+	std::string datafileS = std::string(*datafile);
 	
 	//Load the datafile
 	int rc = prussdrv_load_datafile (PRU_NUM, (char*)datafileS.c_str());
@@ -82,6 +82,8 @@ Handle<Value> loadDatafile(const Arguments& args) {
 		ThrowException(Exception::TypeError(String::New("failed to load datafile")));
 		return scope.Close(Undefined());
 	}
+
+	return scope.Close(Undefined());
 }
 
 /* Execute PRU program
