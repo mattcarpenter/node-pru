@@ -91,7 +91,7 @@ Handle<Value> loadDatafile(const Arguments& args) {
  */
 Handle<Value> executeProgram(const Arguments& args) {
 	HandleScope scope;
-	int address = 908;
+	int address = 0;
 
 	//Check we have a single argument
 	if (args.Length() != 1 && args.Length() != 2) {
@@ -99,7 +99,7 @@ Handle<Value> executeProgram(const Arguments& args) {
 		return scope.Close(Undefined());
 	}
 
-	if (args.Length() == 2 && args[0]->IsNumber()) {
+	if (args.Length() == 2 && args[1]->IsNumber()) {
 		address = args[1]->Int32Value();
 	}
 
