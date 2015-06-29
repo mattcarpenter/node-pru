@@ -1,6 +1,6 @@
 {
   "name": "node-pru-extended",
-  "version": "0.0.5",
+  "version": "0.0.6",
   "description": "Access the Programmable Reatime Units (PRUs) of the BeagleBone",
   "main": "build/Release/prussdrv",
   "scripts": {
@@ -24,6 +24,7 @@
     "url": "https://github.com/mattcarpenter/node-pru-extended/issues"
   },
   "dependencies": {
-    "nan": "^1.8.4"
+    "nan": "^1.8.4",
+    "node-gyp": "0.12.2"
   }
 }
