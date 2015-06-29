@@ -1,6 +1,6 @@
 {
   "name": "node-pru-extended",
-  "version": "0.0.7",
+  "version": "0.0.8",
   "description": "Access the Programmable Reatime Units (PRUs) of the BeagleBone",
   "main": "build/Release/prussdrv",
   "scripts": {
