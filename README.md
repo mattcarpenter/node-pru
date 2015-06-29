@@ -23,7 +23,7 @@ Installation
 ------------
 To install the module simply type
 
-	npm install prussdrv
+	npm install node-pru-extended 
 	
 Credits
 -------
