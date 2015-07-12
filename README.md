@@ -1,14 +1,13 @@
-
-
-
 Access the Programmable Realtime Units (PRUs) of the BeagleBone from Node.js
 ----------------------------------------------------------------------------
-
-This is a fork of [https://github.com/omcaree/node-pru](https://github.com/omcaree/node-pru) which adds a `loadDataFile` method and modifies `execute` to accept a entry point address parameter for loading and execution of PRU binaries produced by TI's C compiler.
 
 This module allows you to interface your Node.js code with programs executing on the BeagleBones Programmable Realtime Units (PRUs). The BeagleBone has 2 PRUs which are separate to the main CPU and run at 200MHz with access to 16 GPIOs each. The benefits of executing code on the PRU are guaranteed realtime execution (outside of the OS) with no load on the primary CPU. The PRUs are coded in [TIs own assembly instruction set](http://processors.wiki.ti.com/index.php/PRU_Assembly_Instructions) and can communicate with code running within the OS via interrupts and shared memory space. 
 
 This README does not aim to be a complete guide to setting up the PRUs and using them from Node.js. As it is mostly built on the [AM335x_PRU Drivers](https://github.com/beagleboard/am335x_pru_package), the [Python PRU bindings](https://bitbucket.org/intelligentagent/pypruss) and the [BBB PRU setup guide](http://www.element14.com/community/community/knode/single-board_computers/next-gen_beaglebone/blog/2013/05/22/bbb--working-with-the-pru-icssprussv2), you can refer to these sources for more information about the PRUs.
+
+##Fork
+
+This is a fork of [https://github.com/omcaree/node-pru](https://github.com/omcaree/node-pru) which adds a `loadDataFile` method and modifies `execute` to accept a entry point address parameter for loading and execution of PRU binaries produced by TI's C compiler.
 
 The Name of the Game
 ------------------
