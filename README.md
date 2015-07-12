@@ -25,8 +25,3 @@ Installation
 To install the module simply type
 
 	npm install node-pru-extended 
-	
-Credits
--------
-This code is a fork of [node-pru](http://github.com/omcaree/node-pru). Since the latter repository seem to be abandoned, I renamed
-it (so that it can be pushed to npm registry), cleaned up, simplified, and added few new functions (and possibly few bugs).
