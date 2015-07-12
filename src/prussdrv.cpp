@@ -379,7 +379,7 @@ Handle<Value> interruptPRU(const Arguments& args) {
 /* Force the PRU code to terminate */
 Handle<Value> forceExit(const Arguments& args) {
 	HandleScope scope;
-	if (arg.Length() != 1) {
+	if (args.Length() != 1) {
 		ThrowException(Exception::TypeError(String::New("Wrong number of arguments")));
 		return scope.Close(Undefined());
 	}
