@@ -61,23 +61,32 @@ Handle<Value> InitPRU(const Arguments& args) {
  */
 Handle<Value> loadDatafile(const Arguments& args) {
 	HandleScope scope;
+	int pruNum;
 	
-	if (args.Length() != 1) {
+	if (args.Length() != 2) {
 		ThrowException(Exception::TypeError(String::New("Wrong number of arguments")));
   		return scope.Close(Undefined());
   	}
+
+  	if (!args[0]->IsNumber()) {
+  		ThrowException(Exception::TypeError(String::New("Argument must be a number")));
+  		return scope.Close(Undefined());
+  	}
   	
-  	if (!args[0]->IsString()) {
+  	if (!args[1]->IsString()) {
   		ThrowException(Exception::TypeError(String::New("Argument must be a string")));
   		return scope.Close(Undefined());
   	}
   
   	//Get a C++ string
-	String::Utf8Value datafile(args[0]->ToString());
+	String::Utf8Value datafile(args[1]->ToString());
 	std::string datafileS = std::string(*datafile);
+
+	//Get PRU num from arguments
+	pruNum = args[0]->Int32Value();
 	
 	//Load the datafile
-	int rc = prussdrv_load_datafile (PRU_NUM, (char*)datafileS.c_str());
+	int rc = prussdrv_load_datafile (pruNum, (char*)datafileS.c_str());
 	if (rc != 0) {
 		ThrowException(Exception::TypeError(String::New("failed to load datafile")));
 		return scope.Close(Undefined());
@@ -87,34 +96,42 @@ Handle<Value> loadDatafile(const Arguments& args) {
 }
 
 /* Execute PRU program
- *	Takes a single string argument, the filename of the .bin
+ *	Takes the filename of the .bin
+ *	
+ *	@param {number} PRU number
+ *	@param {string} filename
+ *	@param {number} address
  */
 Handle<Value> executeProgram(const Arguments& args) {
 	HandleScope scope;
 	int address = 0;
+	int pruNum = 0;
 
-	//Check we have a single argument
-	if (args.Length() != 1 && args.Length() != 2) {
+	//Check we have three arguments
+	if (args.Length() != 3) {
 		ThrowException(Exception::TypeError(String::New("Wrong number of arguments")));
 		return scope.Close(Undefined());
 	}
 
-	if (args.Length() == 2 && args[1]->IsNumber()) {
-		address = args[1]->Int32Value();
+	if (args[2]->IsNumber()) {
+		address = args[2]->Int32Value();
 	}
 
+	//Get PRU number
+	pruNum = args[0]->Int32Value();
+
 	//Check that it's a string
-	if (!args[0]->IsString()) {
+	if (!args[1]->IsString()) {
 		ThrowException(Exception::TypeError(String::New("Argument must be a string")));
 		return scope.Close(Undefined());
 	}
 	
 	//Get a C++ string
-	String::Utf8Value program(args[0]->ToString());
+	String::Utf8Value program(args[1]->ToString());
 	std::string programS = std::string(*program);
 	
 	//Execute the program
-	int rc = prussdrv_exec_program_at (PRU_NUM, (char*)programS.c_str(), address);
+	int rc = prussdrv_exec_program_at (pruNum, (char*)programS.c_str(), address);
 	if (rc != 0) {
 		ThrowException(Exception::TypeError(String::New("failed to execute PRU firmware")));
 		return scope.Close(Undefined());
@@ -362,7 +379,12 @@ Handle<Value> interruptPRU(const Arguments& args) {
 /* Force the PRU code to terminate */
 Handle<Value> forceExit(const Arguments& args) {
 	HandleScope scope;
-	prussdrv_pru_disable(PRU_NUM); 
+	if (arg.Length() != 1) {
+		ThrowException(Exception::TypeError(String::New("Wrong number of arguments")));
+		return scope.Close(Undefined());
+	}
+
+	prussdrv_pru_disable(args[0]->Int32Value()); 
     prussdrv_exit ();
 	return scope.Close(Undefined());
 };
