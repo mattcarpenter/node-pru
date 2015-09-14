@@ -10,12 +10,13 @@
 //PRU Driver headers
 #include <prussdrv.h>
 #include <pruss_intc_mapping.h>	 
-#define OFFSET_SHAREDRAM 2048
+#define OFFSET_SHAREDRAM_DEFAULT 2048
 #define PRU_NUM 	 0
 
 
 //Node.js addon headers
 #include <node.h>
+#include <node_version.h>
 #include <v8.h>
 
 using namespace v8;
@@ -25,6 +26,9 @@ static unsigned int* sharedMem_int;
 
 //data memory pointer
 static unsigned int* dataMem_int;
+
+//offset to be used
+unsigned int offset_sharedRam = OFFSET_SHAREDRAM_DEFAULT;
 
 /* Initialise the PRU
  *	Initialise the PRU driver and static memory
@@ -142,6 +146,30 @@ Handle<Value> executeProgram(const Arguments& args) {
 };
 
 
+/* Set the shared PRU RAM offset to a user-defined value to override default
+ *	Takes an integer as input, which is set as the new offset
+ */
+Handle<Value> setSharedRAMOffset(const Arguments& args) {	//array
+	HandleScope scope;
+	
+	//Check we have single argument
+	if (args.Length() != 1) {
+		ThrowException(Exception::TypeError(String::New("Wrong number of arguments")));
+		return scope.Close(Undefined());
+	}
+
+	//Check it's a number
+	if (!args[0]->IsNumber()) {
+		ThrowException(Exception::TypeError(String::New("Argument must be Integer")));
+		return scope.Close(Undefined());
+	}
+
+	// set offset
+	offset_sharedRam = (unsigned int)Array::Cast(*args[0])->NumberValue();
+	//Return nothing
+	return scope.Close(Undefined());
+};
+
 /* Set the shared PRU RAM to an input array
  *	Takes an integer array as input, writes it to PRU shared memory
  *	Not much error checking here, don't pass in large arrays or seg faults will happen
@@ -175,7 +203,7 @@ Handle<Value> setSharedRAM(const Arguments& args) {
 		}
 		
 		//Set corresponding memory bytes
-		sharedMem_int[OFFSET_SHAREDRAM + i] = (unsigned int) element->NumberValue();
+		sharedMem_int[offset_sharedRam + i] = (unsigned int) element->NumberValue();
 	}
 	
 	//Return nothing
@@ -205,7 +233,7 @@ Handle<Value> setSharedRAMInt(const Arguments& args) {	//array
 	unsigned int val = (unsigned int)Array::Cast(*args[1])->NumberValue();
 	
 	//Set the memory date
-	sharedMem_int[OFFSET_SHAREDRAM + index] = val;
+	sharedMem_int[offset_sharedRam + index] = val;
 	
 	//Return nothing
 	return scope.Close(Undefined());
@@ -240,6 +268,14 @@ Handle<Value> setDataRAMInt(const Arguments& args) {
 }
 	
 
+/* Get current shared PRU RAM offset
+ *	Takes no arguments
+ */
+Handle<Value> getSharedRAMOffset(const Arguments& args) {	//array
+	HandleScope scope;
+	return scope.Close(Number::New(offset_sharedRam));
+};
+
 /* Get array from shared memory
  *	Returns first 16 integers from shared memory
  *	TODO: should take start and size integers as input to let user select array size
@@ -252,7 +288,7 @@ Handle<Value> getSharedRAM(const Arguments& args) {	//array
 	
 	//Iterate over output array and fill it with shared memory data
 	for (unsigned int i = 0; i<a->Length(); i++) {
-		a->Set(i,Number::New(sharedMem_int[OFFSET_SHAREDRAM + i]));
+		a->Set(i,Number::New(sharedMem_int[offset_sharedRam + i]));
 	}
 	
 	//Return array
@@ -282,7 +318,7 @@ Handle<Value> getSharedRAMInt(const Arguments& args) {	//array
 	unsigned short index = (unsigned short)Array::Cast(*args[0])->NumberValue();
 	
 	//Return memory
-	return scope.Close(Number::New(sharedMem_int[OFFSET_SHAREDRAM + index]));
+	return scope.Close(Number::New(sharedMem_int[offset_sharedRam + index]));
 };
 
 /* Get single integer from data memory
@@ -324,7 +360,13 @@ void AsyncWork(uv_work_t* req) {
 	prussdrv_pru_wait_event(PRU_EVTOUT_0);
 }
 
-void AsyncAfter(uv_work_t* req) {
+// fix for "warning: invalid conversion from void (*)(uv_work_t*) {aka void (*)(uv_work_s*)} to uv_after_work_cb {aka void (*)(uv_work_s*, int)}"
+// modelled after https://github.com/santigimeno/node-pcsclite/commit/194351d13dc3ee6f506bfc9d4b49244b6b318a12
+#if NODE_VERSION_AT_LEAST(0, 9, 4)
+	void AsyncAfter(uv_work_t* req, int status) {
+#else
+	void AsyncAfter(uv_work_t* req) {
+#endif
     HandleScope scope;
     Baton* baton = static_cast<Baton*>(req->data);
 	baton->callback->Call(Context::GetCurrent()->Global(), 0, 0);
@@ -394,11 +436,14 @@ void Init(Handle<Object> exports, Handle<Object> module) {
 	//	pru.init();
 	exports->Set(String::NewSymbol("init"), FunctionTemplate::New(InitPRU)->GetFunction());
 
-	//	pru.loadDatafile("data.bin");
+	//	pru.loadDatafile(0, "data.bin");
 	exports->Set(String::NewSymbol("loadDatafile"), FunctionTemplate::New(loadDatafile)->GetFunction());
 	
-	//	pru.execute("mycode.bin");
+	//	pru.execute(0, "mycode.bin", 0x40);
 	exports->Set(String::NewSymbol("execute"), FunctionTemplate::New(executeProgram)->GetFunction());
+	
+	//	pru.setSharedRAMOffset(0x100);
+	exports->Set(String::NewSymbol("setSharedRAMOffset"), FunctionTemplate::New(setSharedRAMOffset)->GetFunction());
 	
 	//	pru.setSharedRAM([0x1, 0x2, 0x3]);
 	exports->Set(String::NewSymbol("setSharedRAM"), FunctionTemplate::New(setSharedRAM)->GetFunction());
@@ -408,6 +453,9 @@ void Init(Handle<Object> exports, Handle<Object> module) {
 	
 	//	pru.setSharedRAM(4, 0xff);
 	exports->Set(String::NewSymbol("setSharedRAMInt"), FunctionTemplate::New(setSharedRAMInt)->GetFunction());
+	
+	//	var intVal = pru.getSharedRAMOffset();
+	exports->Set(String::NewSymbol("getSharedRAMOffset"), FunctionTemplate::New(getSharedRAMOffset)->GetFunction());
 	
 	//	var intVal = pru.getSharedRAM(3);
 	exports->Set(String::NewSymbol("getSharedRAMInt"), FunctionTemplate::New(getSharedRAMInt)->GetFunction());
