@@ -250,7 +250,7 @@ NAN_METHOD(setSharedRAM) {
  *  New: Accepts start index and length as parameters and returns an actual Node Buffer
  *  TODO: check if this usage of Buffers causes memory leaks
  */
-NAN_METHOD(getSharedRam) {
+NAN_METHOD(getSharedRAM) {
 	Nan::HandleScope scope;
 	
 	if (info.Length() < 1) { // for legacy compatibility
