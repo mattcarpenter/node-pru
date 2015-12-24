@@ -468,7 +468,7 @@ NAN_MODULE_INIT(Init) {
 		Nan::GetFunction(Nan::New<FunctionTemplate>(InitPRU)).ToLocalChecked());
 
 	//	pru.loadDatafile(0, "data.bin");
-	Nan::Set(target, Nan::New("loadDataFile").ToLocalChecked(),
+	Nan::Set(target, Nan::New("loadDatafile").ToLocalChecked(),
 		Nan::GetFunction(Nan::New<FunctionTemplate>(loadDatafile)).ToLocalChecked());
 	
 	//	pru.execute(0, "mycode.bin", 0x40);
