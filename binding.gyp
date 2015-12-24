@@ -7,10 +7,12 @@
 				"prussdrv/prussdrv.c",
 			],
 			"include_dirs": [
-				"prussdrv"
+				"prussdrv",
+				"<!(node -e \"require('nan')\")"
 			],
 			"cflags": [
-				"-fpermissive"
+				"-std=c++11",
+				"-fpermissive" 
 			]
 		}
 	]
