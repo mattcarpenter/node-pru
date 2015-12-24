@@ -24,9 +24,7 @@
 #include <node.h>
 #include <node_version.h>
 #include <node_buffer.h>
-#include <v8.h>
-
-using namespace v8;
+#include <nan.h>
 
 //shared memory pointer
 static unsigned int* sharedMem_int;
@@ -38,12 +36,39 @@ static unsigned int* dataMem_pru1_int;
 //offset to be used
 unsigned int offset_sharedRam = OFFSET_SHAREDRAM_DEFAULT;
 
+NAN_METHOD(InitPRU);
+NAN_METHOD(loadDatafile);
+NAN_METHOD(executeProgram);
+NAN_METHOD(setSharedRAMOffset);
+NAN_METHOD(getSharedRAMOffset);
+NAN_METHOD(getSharedRAM);
+NAN_METHOD(setSharedRAM);
+NAN_METHOD(getOrSetXFromOrToY);
+NAN_METHOD(getSharedRAMInt);
+NAN_METHOD(getSharedRAMByte);
+NAN_METHOD(getDataRAMInt);
+NAN_METHOD(getDataRAMByte);
+NAN_METHOD(setShardRAMInt);
+NAN_METHOD(setSharedRAMByte);
+NAN_METHOD(setDataRAMInt);
+NAN_METHOD(setDataRAMByte);
+NAN_METHOD(clearInterrupt);
+NAN_METHOD(interruptPRU);
+NAN_METHOD(forceExit);
+
+//using v8::FunctionTemplate;
+//using v8::String;
+//using v8::Object;
+//using v8::Handle;
+//using v8::Array;
+//using v8::Local;
+using namespace v8;
+
 /* Initialise the PRU
  *	Initialise the PRU driver and static memory
  *	Takes no arguments and returns nothing
  */
-Handle<Value> InitPRU(const Arguments& args) {
-	HandleScope scope;
+NAN_METHOD(InitPRU) {
 	
 	//Initialise driver
 	prussdrv_init ();
@@ -51,8 +76,8 @@ Handle<Value> InitPRU(const Arguments& args) {
 	//Open interrupt
 	unsigned int ret = prussdrv_open(PRU_EVTOUT_0);
 	if (ret) {
-		ThrowException(Exception::Error(String::New("Could not open PRU driver. Did you forget to load device tree fragment?")));
-		return scope.Close(Undefined());
+		return Nan::ThrowError("Could not open PRU driver. Did you forget to load device tree fragment?");
+			
 	}
 	
 	//Initialise interrupt
@@ -63,49 +88,41 @@ Handle<Value> InitPRU(const Arguments& args) {
     	prussdrv_map_prumem(PRUSS0_SHARED_DATARAM, (void **) &sharedMem_int);
 
 	prussdrv_map_prumem(PRUSS0_PRU0_DATARAM, (void **) &dataMem_pru0_int);
-	prussdrv_map_prumem(PRUSS0_PRU1_DATARAM, (void **) &dataMem_pru1_int);
-	
-	//Return nothing
-	return scope.Close(Undefined());
+	prussdrv_map_prumem(PRUSS0_PRU1_DATARAM, (void **) &dataMem_pru1_int);	
 }
 
 /* Loads PRU data file
  *
  */
-Handle<Value> loadDatafile(const Arguments& args) {
-	HandleScope scope;
+NAN_METHOD(loadDatafile) {	
+	Nan::HandleScope scope;
+
 	int pruNum;
 	
-	if (args.Length() != 2) {
-		ThrowException(Exception::TypeError(String::New("Wrong number of arguments")));
-  		return scope.Close(Undefined());
+	if (info.Length() != 2) {
+		return Nan::ThrowTypeError("Wrong number of arguments");
   	}
 
-  	if (!args[0]->IsNumber()) {
-  		ThrowException(Exception::TypeError(String::New("Argument must be a number")));
-  		return scope.Close(Undefined());
+  	if (!info[0]->IsNumber()) {
+  		return Nan::ThrowTypeError("Argument must be a number");
   	}
   	
-  	if (!args[1]->IsString()) {
-  		ThrowException(Exception::TypeError(String::New("Argument must be a string")));
-  		return scope.Close(Undefined());
+  	if (!info[1]->IsString()) {
+  		return Nan::ThrowTypeError("Argument must be a string");
   	}
   
   	//Get a C++ string
-	String::Utf8Value datafile(args[1]->ToString());
+	String::Utf8Value datafile(info[1]->ToString());
 	std::string datafileS = std::string(*datafile);
 
 	//Get PRU num from arguments
-	pruNum = args[0]->Int32Value();
+	pruNum = info[0]->Int32Value();
 	
 	//Load the datafile
 	int rc = prussdrv_load_datafile (pruNum, (char*)datafileS.c_str());
 	if (rc != 0) {
-		ThrowException(Exception::TypeError(String::New("failed to load datafile")));
-		return scope.Close(Undefined());
+		return Nan::ThrowTypeError("failed to load datafile");
 	}
-
-	return scope.Close(Undefined());
 }
 
 /* Execute PRU program
@@ -115,76 +132,67 @@ Handle<Value> loadDatafile(const Arguments& args) {
  *	@param {string} filename
  *	@param {number} address
  */
-Handle<Value> executeProgram(const Arguments& args) {
-	HandleScope scope;
+NAN_METHOD(executeProgram) {	
+	Nan::HandleScope scope;
+
 	size_t address = 0;
 	int pruNum = 0;
 
 	//Check we have three arguments
-	if (args.Length() != 3) {
-		ThrowException(Exception::TypeError(String::New("Wrong number of arguments")));
-		return scope.Close(Undefined());
+	if (info.Length() != 3) {
+		return Nan::ThrowError("Wrong number of arguments");
 	}
 
-	if (args[2]->IsNumber()) {
-		address = args[2]->Uint32Value();
+	if (info[2]->IsNumber()) {
+		address = info[2]->Uint32Value();
 	}
 
 	//Get PRU number
-	pruNum = args[0]->Int32Value();
+	pruNum = info[0]->Int32Value();
 
 	//Check that it's a string
-	if (!args[1]->IsString()) {
-		ThrowException(Exception::TypeError(String::New("Argument must be a string")));
-		return scope.Close(Undefined());
+	if (!info[1]->IsString()) {
+		return Nan::ThrowError("Argument must be a string");
 	}
 	
 	//Get a C++ string
-	String::Utf8Value program(args[1]->ToString());
+	String::Utf8Value program(info[1]->ToString());
 	std::string programS = std::string(*program);
 	
 	//Execute the program
 	int rc = prussdrv_exec_program_at (pruNum, (char*)programS.c_str(), address);
 	if (rc != 0) {
-		ThrowException(Exception::TypeError(String::New("failed to execute PRU firmware")));
-		return scope.Close(Undefined());
+		return Nan::ThrowError("failed to execute PRU firmware");
 	}
-	
-	//Return nothing
-	return scope.Close(Undefined());
 };
 
 
 /* Set the shared PRU RAM offset to a user-defined value to override default
  *	Takes an integer as input, which is set as the new offset
  */
-Handle<Value> setSharedRAMOffset(const Arguments& args) {	//array
-	HandleScope scope;
-	
+NAN_METHOD(setSharedRAMOffset) {
+	Nan::HandleScope scope;	
+
 	//Check we have single argument
-	if (args.Length() != 1) {
-		ThrowException(Exception::TypeError(String::New("Wrong number of arguments")));
-		return scope.Close(Undefined());
+	if (info.Length() != 1) {
+		return Nan::ThrowTypeError("Wrong number of arguments");
 	}
 
 	//Check it's a number
-	if (!args[0]->IsNumber()) {
-		ThrowException(Exception::TypeError(String::New("Argument must be Integer")));
-		return scope.Close(Undefined());
+	if (!info[0]->IsNumber()) {
+		return Nan::ThrowTypeError("Argument must be Integer");
 	}
 
 	// set offset
-	offset_sharedRam = (unsigned int)Array::Cast(*args[0])->NumberValue();
-	//Return nothing
-	return scope.Close(Undefined());
+	offset_sharedRam = (unsigned int)Array::Cast(*info[0])->NumberValue();
 };
 
 /* Get current shared PRU RAM offset
  *	Takes no arguments
  */
-Handle<Value> getSharedRAMOffset(const Arguments& args) {	//array
-	HandleScope scope;
-	return scope.Close(Number::New(offset_sharedRam));
+NAN_METHOD(getSharedRAMOffset) {
+	Nan::HandleScope scope;
+	info.GetReturnValue().Set(Nan::New<v8::Number>(offset_sharedRam));
 };
 
 /* Set the shared PRU RAM to an input array
@@ -194,51 +202,46 @@ Handle<Value> getSharedRAMOffset(const Arguments& args) {	//array
  *  New: also accepts an index + Buffer object as arguments
  *  TODO: check if this usage of Buffers causes memory leaks
  */
-Handle<Value> setSharedRAM(const Arguments& args) {
-	HandleScope scope;
+NAN_METHOD(setSharedRAM) {
+	Nan::HandleScope scope;
 	unsigned int i;
 	
 	//Check we have a single argument
-	if (!(args.Length() == 1 || args.Length() == 2)) {
-		ThrowException(Exception::TypeError(String::New("Wrong number of arguments")));
-		return scope.Close(Undefined());
+	if (!(info.Length() == 1 || info.Length() == 2)) {
+		return Nan::ThrowTypeError("Wrong number of arguments");
 	}
 	
 	//Check that it's an array or index and Buffer object
-	if ((args.Length() == 1 && !args[0]->IsArray()) || (args.Length() == 2 && !(args[0]->IsNumber() && args[1]->IsObject()))) {
-		ThrowException(Exception::TypeError(String::New("Argument must be an array or an index and a Buffer object")));
-		return scope.Close(Undefined());
+	if ((info.Length() == 1 && !info[0]->IsArray()) || (info.Length() == 2 && !(info[0]->IsNumber() && info[1]->IsObject()))) {
+		return Nan::ThrowTypeError("Argument must be an array or an index and a Buffer object");
 	}
 	
-	if (args[0]->IsArray()) {
+	if (info[0]->IsArray()) {
 		//Get array
-		Local<Array> a = Array::Cast(*args[0]);
+		Local<Array> a = Local<Array>::Cast(info[0]);
 		
 		//Iterate over array
-		for (i = 0; i<a->Length(); i++) {
+		for (i = 0; i < a->Length(); i++) {
 			//Get element and check it's numeric
 			Local<Value> element = a->Get(i);
 			if (!element->IsNumber()) {
-				ThrowException(Exception::TypeError(String::New("Array must be integer")));
-				return scope.Close(Undefined());
+				return Nan::ThrowTypeError("Array must be integer");
 			}
 			
 			//Set corresponding memory bytes
 			sharedMem_int[offset_sharedRam + i] = (unsigned int) element->NumberValue();
 		}
 	} else {
-		unsigned int index = args[0]->Uint32Value();
+		unsigned int index = info[0]->Uint32Value();
 		
 		//According to https://luismreis.github.io/node-bindings-guide/docs/arguments.html
-		Local<Object> buf = args[1]->ToObject();
+		Local<Object> buf = info[1]->ToObject();
 		char* data = node::Buffer::Data(buf);
 		size_t data_length = node::Buffer::Length(buf);
 		for (i = 0; i < data_length; i++) {
 			((char*) (sharedMem_int + offset_sharedRam))[index + i] = data[i];
 		}
 	}
-	//Return nothing
-	return scope.Close(Undefined());
 };
 
 
@@ -247,49 +250,36 @@ Handle<Value> setSharedRAM(const Arguments& args) {
  *  New: Accepts start index and length as parameters and returns an actual Node Buffer
  *  TODO: check if this usage of Buffers causes memory leaks
  */
-Handle<Value> getSharedRAM(const Arguments& args) {	//array
-	HandleScope scope;
+NAN_METHOD(getSharedRAM) {
+	Nan::HandleScope scope;
 	
-	if (args.Length() < 1) { // for legacy compatibility
+	if (info.Length() < 1) { // for legacy compatibility
 		//Create output array
-		Local<Array> a = Array::New(16);
+		Local<Array> a = Nan::New<Array>(16);
 		
 		//Iterate over output array and fill it with shared memory data
 		for (unsigned int i = 0; i<a->Length(); i++) {
-			a->Set(i,Number::New(sharedMem_int[offset_sharedRam + i]));
+			a->Set(i,Nan::New<Number>(sharedMem_int[offset_sharedRam + i]));
 		}
 		
 		//Return array
-		return scope.Close(a);
+		return info.GetReturnValue().Set(a);
 	} else {
-		if (args.Length() != 2) {
-			ThrowException(Exception::TypeError(String::New("Wrong number of arguments")));
-			return scope.Close(Undefined());
+		if (info.Length() != 2) {
+			return Nan::ThrowTypeError("Wrong number of arguments");
 		}
 		
 		//Check they are both numbers
-		if (!args[0]->IsNumber() || !args[1]->IsNumber()) {
-			ThrowException(Exception::TypeError(String::New("Arguments must be Integer")));
-			return scope.Close(Undefined());
+		if (!info[0]->IsNumber() || !info[1]->IsNumber()) {
+			return Nan::ThrowTypeError("Arguments must be Integer");
 		}
 		
 		//Get the numbers
-		unsigned int index = (unsigned short)Array::Cast(*args[0])->NumberValue();
-		unsigned int length = (unsigned int)Array::Cast(*args[1])->NumberValue();
+		unsigned int index = (unsigned short)Array::Cast(*info[0])->NumberValue();
+		unsigned int length = (unsigned int)Array::Cast(*info[1])->NumberValue();
 		
-		//Props for showing how to use Buffers from CPP: http://www.samcday.com.au/blog/2011/03/03/creating-a-proper-buffer-in-a-node-c-addon/
-		node::Buffer *buf = node::Buffer::New(length);
-		memcpy(node::Buffer::Data(buf), sharedMem_int + index, length);
-		
-		Local<Object> globalObj = Context::GetCurrent()->Global();
-		Local<Function> bufferConstructor = Local<Function>::Cast(globalObj->Get(String::New("Buffer")));
-		Handle<Value> constructorArgs[3] = {
-			buf->handle_,
-			Integer::New(length),
-			Integer::New(0)
-		};
-		Local<Object> actualBuf = bufferConstructor->NewInstance(3, constructorArgs);
-		return scope.Close(actualBuf);
+		Nan::MaybeLocal<v8::Object> buf = Nan::CopyBuffer(reinterpret_cast<const char*>(sharedMem_int + index), length);	
+		info.GetReturnValue().Set(buf.ToLocalChecked());
 	}
 };
 
@@ -301,22 +291,22 @@ Handle<Value> getSharedRAM(const Arguments& args) {	//array
  *  previously getDataRAMInt defaulted to PRU num 1 we don't want to break programs. Therefore,
  *  the PRU num stays optional and defaults to 0.
  */
-Handle<Value> getOrSetXFromOrToY(char mode, char what, char where, const Arguments& args) {	//array
-	HandleScope scope;
+Local<Value> getOrSetXFromOrToY(char mode, char what, char where, Nan::NAN_METHOD_ARGS_TYPE args) {	//array
+	Nan::HandleScope scope;
 	int pruNum = 0;
 	unsigned int val = 0;
 	const char maxArgs = (mode == M_GET)? 2 : 3;
-	
+		
 	//Check we have at least one argument
 	if (args.Length() < 1 || args.Length() > maxArgs) {
-		ThrowException(Exception::TypeError(String::New("Wrong number of arguments")));
-		return scope.Close(Undefined());
+		Nan::ThrowTypeError("Wrong number of arguments");
+		return Nan::Null();
 	}
 	
 	//Check if arguments are numbers
 	if 	(!args[0]->IsNumber() || (args.Length() > 1 && !args[1]->IsNumber()) || (args.Length() > 2 && !args[2]->IsNumber())) {
-		ThrowException(Exception::TypeError(String::New("Argument must be Integer")));
-		return scope.Close(Undefined());
+		Nan::ThrowTypeError("Argument must be Integer");
+		return Nan::Null();
 	}
 	
 	if (mode == M_SET) {
@@ -351,52 +341,52 @@ Handle<Value> getOrSetXFromOrToY(char mode, char what, char where, const Argumen
 		if (mode == M_SET) {
 			addr[index] = val;
 		}
-		return scope.Close(Number::New(addr[index]));
+		return Nan::New<v8::Number>(addr[index]);
 	} else {
 		if (mode == M_SET) {
 			((unsigned char*) addr)[index] = val;
 		}
-		return scope.Close(Number::New(((unsigned char*) addr)[index]));
+		return Nan::New<v8::Number>(((unsigned char*) addr)[index]);
 	}
 };
 
-Handle<Value> getSharedRAMInt(const Arguments& args) {
-	return getOrSetXFromOrToY(M_GET, X_INT, Y_SHAREDRAM, args);
+NAN_METHOD(getSharedRAMInt) {
+	info.GetReturnValue().Set(getOrSetXFromOrToY(M_GET, X_INT, Y_SHAREDRAM, info));
 };
 
-Handle<Value> getSharedRAMByte(const Arguments& args) {
-	return getOrSetXFromOrToY(M_GET, X_BYTE, Y_SHAREDRAM, args);
+NAN_METHOD(getSharedRAMByte) {
+	info.GetReturnValue().Set(getOrSetXFromOrToY(M_GET, X_BYTE, Y_SHAREDRAM, info));
 };
 
-Handle<Value> getDataRAMInt(const Arguments& args) {
-	return getOrSetXFromOrToY(M_GET, X_INT, Y_DATAMEM, args);
+NAN_METHOD(getDataRAMInt) {
+	info.GetReturnValue().Set(getOrSetXFromOrToY(M_GET, X_INT, Y_DATAMEM, info));
 };
 
-Handle<Value> getDataRAMByte(const Arguments& args) {
-	return getOrSetXFromOrToY(M_GET, X_BYTE, Y_DATAMEM, args);
+NAN_METHOD(getDataRAMByte) {
+	info.GetReturnValue().Set(getOrSetXFromOrToY(M_GET, X_BYTE, Y_DATAMEM, info));
 };
 
-Handle<Value> setSharedRAMInt(const Arguments& args) {
-	return getOrSetXFromOrToY(M_SET, X_INT, Y_SHAREDRAM, args);
+NAN_METHOD(setSharedRAMInt) {
+	info.GetReturnValue().Set(getOrSetXFromOrToY(M_SET, X_INT, Y_SHAREDRAM, info));
 };
 
-Handle<Value> setSharedRAMByte(const Arguments& args) {
-	return getOrSetXFromOrToY(M_SET, X_BYTE, Y_SHAREDRAM, args);
+NAN_METHOD(setSharedRAMByte) {
+	info.GetReturnValue().Set(getOrSetXFromOrToY(M_SET, X_BYTE, Y_SHAREDRAM, info));
 };
 
-Handle<Value> setDataRAMInt(const Arguments& args) {
-	return getOrSetXFromOrToY(M_SET, X_INT, Y_DATAMEM, args);
+NAN_METHOD(setDataRAMInt) {
+	info.GetReturnValue().Set(getOrSetXFromOrToY(M_SET, X_INT, Y_DATAMEM, info));
 };
 
-Handle<Value> setDataRAMByte(const Arguments& args) {
-	return getOrSetXFromOrToY(M_SET, X_BYTE, Y_DATAMEM, args);
+NAN_METHOD(setDataRAMByte) {
+	info.GetReturnValue().Set(getOrSetXFromOrToY(M_SET, X_BYTE, Y_DATAMEM, info));
 };
 
 /*-------------------This is mostly copy/pasted from here: ---------------------*/
 /*----------------http://kkaefer.github.io/node-cpp-modules/--------------------*/
 struct Baton {
     uv_work_t request;
-    Persistent<Function> callback;
+    Nan::Persistent<Function> callback;
     int error_code;
     std::string error_message;
     int32_t result;
@@ -414,133 +404,145 @@ void AsyncWork(uv_work_t* req) {
 #else
 	void AsyncAfter(uv_work_t* req) {
 #endif
-    HandleScope scope;
+    Nan::HandleScope scope;
     Baton* baton = static_cast<Baton*>(req->data);
-	baton->callback->Call(Context::GetCurrent()->Global(), 0, 0);
-    baton->callback.Dispose();
+    Local<Function> cb = Nan::New<Function>(baton->callback);
+    cb->Call(Nan::GetCurrentContext()->Global(), 0, 0);
+    baton->callback.Reset();
     delete baton;
 }
 
-Handle<Value> waitForInterrupt(const Arguments& args) {
-	HandleScope scope;
-	Local<Function> callback = Local<Function>::Cast(args[0]);
+NAN_METHOD(waitForInterrupt) {
+	Nan::HandleScope scope;
+	Local<Function> callback = Local<Function>::Cast(info[0]);
 
 	Baton* baton = new Baton();
-    baton->request.data = baton;
-    baton->callback = Persistent<Function>::New(callback);
-	
+        baton->request.data = baton;
+        baton->callback.Reset(callback);	
 	uv_queue_work(uv_default_loop(), &baton->request, AsyncWork, AsyncAfter);
-	return scope.Close(Undefined());
 }
 
 /*---------------------------Here ends the copy/pasting----------------------------*/
 
 /* Clear Interrupt */
-Handle<Value> clearInterrupt(const Arguments& args) {
-	HandleScope scope;
+NAN_METHOD(clearInterrupt) {
+	Nan::HandleScope scope;
 	
 	//Check we have single argument
-	if (args.Length() != 1) {
-		ThrowException(Exception::TypeError(String::New("Wrong number of arguments")));
-		return scope.Close(Undefined());
+	if (info.Length() != 1) {
+		return Nan::ThrowTypeError("Wrong number of arguments");
 	}
 	
 	//Check it's a number
-	if (!args[0]->IsNumber()) {
-		ThrowException(Exception::TypeError(String::New("Argument must be Integer")));
-		return scope.Close(Undefined());
+	if (!info[0]->IsNumber()) {
+		return Nan::ThrowTypeError("Argument must be Integer");
 	}
 	
 	//Get index value
-	int event = (int) Array::Cast(*args[0])->NumberValue();
+	int event = (int) Array::Cast(*info[0])->NumberValue();
 	
 	prussdrv_pru_clear_event(PRU0_ARM_INTERRUPT, event);
-	return scope.Close(Undefined());
 };
 
-Handle<Value> interruptPRU(const Arguments& args) {
-	HandleScope scope;
+NAN_METHOD(interruptPRU) {
+	Nan::HandleScope scope;
 	prussdrv_pru_send_event(ARM_PRU0_INTERRUPT);
-	return scope.Close(Undefined());
 };
 
 
 /* Force the PRU code to terminate */
-Handle<Value> forceExit(const Arguments& args) {
-	HandleScope scope;
-	if (args.Length() != 1) {
-		ThrowException(Exception::TypeError(String::New("Wrong number of arguments")));
-		return scope.Close(Undefined());
+NAN_METHOD(forceExit) {
+	Nan::HandleScope scope;
+	if (info.Length() != 1) {
+		return Nan::ThrowTypeError("Wrong number of arguments");
 	}
 
-	prussdrv_pru_disable(args[0]->Uint32Value()); 
-    prussdrv_exit ();
-	return scope.Close(Undefined());
+	prussdrv_pru_disable(info[0]->Uint32Value()); 
+    	prussdrv_exit();
 };
 
 /* Initialise the module */
-void Init(Handle<Object> exports, Handle<Object> module) {
+NAN_MODULE_INIT(Init) {
 	//	pru.init();
-	exports->Set(String::NewSymbol("init"), FunctionTemplate::New(InitPRU)->GetFunction());
+	Nan::Set(target, Nan::New("init").ToLocalChecked(),
+		Nan::GetFunction(Nan::New<FunctionTemplate>(InitPRU)).ToLocalChecked());
 
 	//	pru.loadDatafile(0, "data.bin");
-	exports->Set(String::NewSymbol("loadDatafile"), FunctionTemplate::New(loadDatafile)->GetFunction());
+	Nan::Set(target, Nan::New("loadDatafile").ToLocalChecked(),
+		Nan::GetFunction(Nan::New<FunctionTemplate>(loadDatafile)).ToLocalChecked());
 	
 	//	pru.execute(0, "mycode.bin", 0x40);
-	exports->Set(String::NewSymbol("execute"), FunctionTemplate::New(executeProgram)->GetFunction());
+	Nan::Set(target, Nan::New("execute").ToLocalChecked(),
+		Nan::GetFunction(Nan::New<FunctionTemplate>(executeProgram)).ToLocalChecked());
 	
 	//	var intVal = pru.getSharedRAMOffset();
-	exports->Set(String::NewSymbol("getSharedRAMOffset"), FunctionTemplate::New(getSharedRAMOffset)->GetFunction());
+	Nan::Set(target, Nan::New("getSharedRAMOffset").ToLocalChecked(),
+		Nan::GetFunction(Nan::New<FunctionTemplate>(getSharedRAMOffset)).ToLocalChecked());
 	
 	//	pru.setSharedRAMOffset(0x100);
-	exports->Set(String::NewSymbol("setSharedRAMOffset"), FunctionTemplate::New(setSharedRAMOffset)->GetFunction());
+	Nan::Set(target, Nan::New("setSharedRAMOffset").ToLocalChecked(),
+		Nan::GetFunction(Nan::New<FunctionTemplate>(setSharedRAMOffset)).ToLocalChecked());
 	
 	// var intArray = pru.getSharedRAM();
 	// or: var myBuffer = pru.getSharedRAM(4, 12); // returns Buffer with 12 bytes
-	exports->Set(String::NewSymbol("getSharedRAM"), FunctionTemplate::New(getSharedRAM)->GetFunction());
+	Nan::Set(target, Nan::New("getSharedRAM").ToLocalChecked(),
+		Nan::GetFunction(Nan::New<FunctionTemplate>(getSharedRAM)).ToLocalChecked());
 	
 	//	pru.setSharedRAM([0x1, 0x2, 0x3]);
-	exports->Set(String::NewSymbol("setSharedRAM"), FunctionTemplate::New(setSharedRAM)->GetFunction());
+	Nan::Set(target, Nan::New("setSharedRAM").ToLocalChecked(),
+		Nan::GetFunction(Nan::New<FunctionTemplate>(setSharedRAM)).ToLocalChecked());
 	
 	//	var intVal = pru.getSharedRAMInt(3);
-	exports->Set(String::NewSymbol("getSharedRAMInt"), FunctionTemplate::New(getSharedRAMInt)->GetFunction());
+	Nan::Set(target, Nan::New("getSharedRAMInt").ToLocalChecked(),
+		Nan::GetFunction(Nan::New<FunctionTemplate>(getSharedRAMInt)).ToLocalChecked());
 
 	//	var intVal = pru.getDataRAMInt(3);
 	// or: var intVal = pru.getDataRAMInt(1, 4); // first arg is the PRU num
-	exports->Set(String::NewSymbol("getDataRAMInt"), FunctionTemplate::New(getDataRAMInt)->GetFunction());
+	Nan::Set(target, Nan::New("getDataRAMInt").ToLocalChecked(),
+		Nan::GetFunction(Nan::New<FunctionTemplate>(getDataRAMInt)).ToLocalChecked());
 	
 	//	var byteVal = pru.getSharedRAMByte(3);
-	exports->Set(String::NewSymbol("getSharedRAMByte"), FunctionTemplate::New(getSharedRAMByte)->GetFunction());
+	Nan::Set(target, Nan::New("getSharedRAMByte").ToLocalChecked(),
+		Nan::GetFunction(Nan::New<FunctionTemplate>(getSharedRAMByte)).ToLocalChecked());
 	
 	//	var byteVal = pru.getDataRAMByte(3);
 	// or: var byteVal = pru.getDataRAMByte(1, 4); // first arg is the PRU num
-	exports->Set(String::NewSymbol("getDataRAMByte"), FunctionTemplate::New(getDataRAMByte)->GetFunction());
+	Nan::Set(target, Nan::New("getDataRAMByte").ToLocalChecked(),
+		Nan::GetFunction(Nan::New<FunctionTemplate>(getDataRAMByte)).ToLocalChecked());;
 
 	//	pru.setSharedRAMInt(4, 0xa1b2c3d4);
-	exports->Set(String::NewSymbol("setSharedRAMInt"), FunctionTemplate::New(setSharedRAMInt)->GetFunction());
+	Nan::Set(target, Nan::New("setSharedRAMInt").ToLocalChecked(),
+		Nan::GetFunction(Nan::New<FunctionTemplate>(setSharedRAMInt)).ToLocalChecked());
 	
 	//	pru.setDataRAMInt(4, 0xa1b2c3d4);
 	// or: pru.setDataRAMInt(1, 4, 0xa1b2c3d4); // first arg is the PRU num
-	exports->Set(String::NewSymbol("setDataRAMInt"), FunctionTemplate::New(setDataRAMInt)->GetFunction());
+	Nan::Set(target, Nan::New("setDataRAMInt").ToLocalChecked(),
+		Nan::GetFunction(Nan::New<FunctionTemplate>(setDataRAMInt)).ToLocalChecked());
 	
 	//	pru.setSharedRAMByte(4, 0xab);
-	exports->Set(String::NewSymbol("setSharedRAMByte"), FunctionTemplate::New(setSharedRAMByte)->GetFunction());
-	
+	Nan::Set(target, Nan::New("setSharedRAMByte").ToLocalChecked(),
+		Nan::GetFunction(Nan::New<FunctionTemplate>(setSharedRAMByte)).ToLocalChecked());
+
 	//	pru.setDataRAMByte(4, 0xff);
 	// or: pru.setDataRAMByte(1, 4, 0xff); // first arg is the PRU num
-	exports->Set(String::NewSymbol("setDataRAMByte"), FunctionTemplate::New(setDataRAMByte)->GetFunction());
+	Nan::Set(target, Nan::New("setDataRAMByte").ToLocalChecked(),
+		Nan::GetFunction(Nan::New<FunctionTemplate>(setDataRAMByte)).ToLocalChecked());
 	
 	//	pru.waitForInterrupt(function() { console.log("Interrupted by PRU");});
-	exports->Set(String::NewSymbol("waitForInterrupt"), FunctionTemplate::New(waitForInterrupt)->GetFunction());
+	Nan::Set(target, Nan::New("waitForInterrupt").ToLocalChecked(),
+		Nan::GetFunction(Nan::New<FunctionTemplate>(waitForInterrupt)).ToLocalChecked());
 
 	//	pru.clearInterrupt();
-	exports->Set(String::NewSymbol("clearInterrupt"), FunctionTemplate::New(clearInterrupt)->GetFunction());
+	Nan::Set(target, Nan::New("clearInterrupt").ToLocalChecked(),
+		Nan::GetFunction(Nan::New<FunctionTemplate>(clearInterrupt)).ToLocalChecked());
 	
 	//	pru.interrupt();
-	exports->Set(String::NewSymbol("interrupt"), FunctionTemplate::New(interruptPRU)->GetFunction());	
+	Nan::Set(target, Nan::New("interrupt").ToLocalChecked(),
+		Nan::GetFunction(Nan::New<FunctionTemplate>(interruptPRU)).ToLocalChecked());
 	
 	//	pru.exit();
-	exports->Set(String::NewSymbol("exit"), FunctionTemplate::New(forceExit)->GetFunction());
+	Nan::Set(target, Nan::New("exit").ToLocalChecked(),
+		Nan::GetFunction(Nan::New<FunctionTemplate>(forceExit)).ToLocalChecked());
 }
 
 NODE_MODULE(prussdrv, Init)
